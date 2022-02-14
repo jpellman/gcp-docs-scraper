@@ -4,10 +4,12 @@ from bs4.element import Tag
 from urllib.request import urlopen
 from collections import OrderedDict
 import os
+from sh import pandoc
+from glob import glob
 
 services = [ 
-	"/compute/docs/instances", \
 	"/iam/docs/understanding-simulator", \
+	"/compute/docs/instances", \
 	"/vpc/docs/vpc", \
 	"/storage/docs/creating-buckets", \
 	"/kubernetes-engine/docs/concepts/kubernetes-engine-overview"]
@@ -39,11 +41,12 @@ for service in services:
 	with open("csvs/%s.csv" % service, "w") as f:
 		for k,v in docDict.items():
 			f.write("%s;https://cloud.google.com%s\n" % (k,v))			
-	os.makedirs(service, exist_ok=True)
+	os.makedirs(os.path.join("html",service), exist_ok=True)
+	os.makedirs(os.path.join("epubs",service), exist_ok=True)
 	for idx,v in enumerate(docDict.values()):
 		with urlopen("https://cloud.google.com%s" % v) as response:
 			soup = BeautifulSoup(response, 'html.parser')
-		with open("%s/%.4d.html" % (service, idx),"w") as f:
+		with open(os.path.join("html",service, "%.4d.html" % idx),"w") as f:
 			f.write(str(soup.head))
 			f.write("<body>\n")
 			for i in soup.article.contents:
@@ -64,3 +67,4 @@ for service in services:
 				else:
 					f.write(str(i))
 			f.write("</body>\n")
+	pandoc("-s","--toc",sorted(glob(os.path.join("html",service, "*.html"))),f="html",t="epub",o=os.path.join("epubs",service,"%s.epub" % service))
